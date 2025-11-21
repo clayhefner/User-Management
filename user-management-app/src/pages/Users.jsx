@@ -22,7 +22,7 @@ import {
 } from '@ant-design/icons';
 import { mockUsers } from '../data/mockUsers';
 
-const Users = () => {
+const Users = ({ userRole }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
@@ -35,6 +35,10 @@ const Users = () => {
   });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addUserForm] = Form.useForm();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalConfig, setModalConfig] = useState({ title: '', content: '', action: null });
+
+  const isSuperAdmin = userRole === 'super_admin';
 
   const getUserInitials = (firstName, lastName) => {
     return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
@@ -122,6 +126,30 @@ const Users = () => {
   const handleAccessToggleInline = (user, checked) => {
     message.info(`${checked ? 'Enabling' : 'Disabling'} dashboard access for: ${user.firstName} ${user.lastName}`);
     // In a real app, you would update the user's active status here
+  };
+
+  const handleResetMFA = (user) => {
+    const config = {
+      title: 'Reset Multi-Factor Authentication',
+      content: `Are you sure you want to reset MFA for ${user.firstName} ${user.lastName}? This will remove their current MFA setup and require them to set it up again on their next login.`,
+      action: () => {
+        message.success('MFA reset successfully!');
+        console.log('AUDIT: Super Admin reset MFA for user', user.id);
+      }
+    };
+    setModalConfig(config);
+    setIsModalOpen(true);
+  };
+
+  const handleModalOk = () => {
+    if (modalConfig.action) {
+      modalConfig.action();
+    }
+    setIsModalOpen(false);
+  };
+
+  const handleModalCancel = () => {
+    setIsModalOpen(false);
   };
 
   // Simulate loading data
@@ -351,6 +379,13 @@ const Users = () => {
             icon: <UnlockOutlined />,
             label: 'Reset User Lockout',
             onClick: () => handleLockToggle(record),
+          }] : []),
+          ...(isSuperAdmin && record.mfaEnabled ? [{
+            key: 'resetMFA',
+            icon: <SafetyOutlined />,
+            label: 'Reset MFA',
+            danger: true,
+            onClick: () => handleResetMFA(record),
           }] : []),
           {
             key: 'delete',
@@ -614,6 +649,19 @@ const Users = () => {
             </Select>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Confirmation Modal */}
+      <Modal
+        title={modalConfig.title}
+        open={isModalOpen}
+        onOk={handleModalOk}
+        onCancel={handleModalCancel}
+        okText="Confirm"
+        cancelText="Cancel"
+        icon={<ExclamationCircleFilled />}
+      >
+        <p>{modalConfig.content}</p>
       </Modal>
     </div>
   );

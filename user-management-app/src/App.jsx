@@ -135,7 +135,7 @@ function AppContent() {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/users" element={<Users />} />
+              <Route path="/users" element={<Users userRole={userRole} />} />
               <Route path="/users/new" element={<UserProfilePage mode="admin" userRole={userRole} />} />
               <Route path="/users/:userId" element={<UserProfilePage mode="admin" userRole={userRole} />} />
               <Route path="/profile" element={<UserProfilePage mode="self" userRole={userRole} />} />
