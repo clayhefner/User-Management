@@ -301,6 +301,16 @@ const UserProfilePage = ({ mode: pageMode, userRole }) => {
           }
         };
         break;
+      case 'enableAccount':
+        config = {
+          title: 'Enable Account',
+          content: `Are you sure you want to enable the account for ${user.firstName} ${user.lastName}? The user will be able to log in once their account is enabled.`,
+          action: () => {
+            message.success('Account enabled successfully!');
+            console.log('AUDIT: Admin', userRole, 'enabled account for user', userId);
+          }
+        };
+        break;
       case 'resetMFA':
         config = {
           title: 'Reset Multi-Factor Authentication',
@@ -765,15 +775,25 @@ const UserProfilePage = ({ mode: pageMode, userRole }) => {
                         </Button>
                       )}
 
-                      {/* Disable Account - Always show for admins */}
-                      <Button
-                        danger
-                        icon={<StopOutlined />}
-                        onClick={() => showActionModal('disableAccount')}
-                        block
-                      >
-                        Disable Account
-                      </Button>
+                      {/* Enable/Disable Account - Always show for admins */}
+                      {user.active ? (
+                        <Button
+                          danger
+                          icon={<StopOutlined />}
+                          onClick={() => showActionModal('disableAccount')}
+                          block
+                        >
+                          Disable Account
+                        </Button>
+                      ) : (
+                        <Button
+                          icon={<CheckCircleOutlined />}
+                          onClick={() => showActionModal('enableAccount')}
+                          block
+                        >
+                          Enable Account
+                        </Button>
+                      )}
 
                       {/* Reset MFA - Super Admin only, show if MFA enabled */}
                       {isSuperAdmin && user.mfaEnabled && (
