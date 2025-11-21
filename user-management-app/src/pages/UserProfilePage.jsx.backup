@@ -1,0 +1,953 @@
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Form, Input, Select, Switch, Row, Col, Tag, Descriptions, Divider, Button, Card, message, Tabs, Alert, Avatar, Progress, Badge } from 'antd';
+import { GoogleOutlined, WindowsOutlined, LockOutlined, UnlockOutlined, WarningOutlined, ClockCircleOutlined, CheckCircleOutlined, EditOutlined, SaveOutlined, CloseOutlined, SafetyOutlined } from '@ant-design/icons';
+import { mockUsers } from '../data/mockUsers';
+
+const UserProfilePage = ({ mode: pageMode, userRole }) => {
+  const navigate = useNavigate();
+  const { userId } = useParams();
+  const [searchParams] = useSearchParams();
+  const queryMode = searchParams.get('mode') || 'view';
+  const [form] = Form.useForm();
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [editingSection, setEditingSection] = useState(null);
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, label: '', color: '' });
+
+  // Determine context
+  const isSelfService = pageMode === 'self';
+  const isAdminMode = pageMode === 'admin';
+
+  // For self-service, use the first user in mockUsers as "current user" for PoC
+  const currentUserId = isSelfService ? mockUsers[0].id : null;
+
+  // Determine if admin is managing another user
+  const isAdminManagingOther = isAdminMode && userId && userId !== currentUserId;
+
+  // Mode detection for add/edit/view
+  const isViewMode = queryMode === 'view';
+  const isAddMode = queryMode === 'add';
+  const isEditMode = queryMode === 'edit' || isSelfService;
+
+  // Get user data
+  const user = isSelfService
+    ? mockUsers.find(u => u.id === currentUserId)
+    : userId
+      ? mockUsers.find(u => u.id === userId)
+      : null;
+
+  // Permission checks
+  const isSuperAdmin = userRole === 'super_admin';
+  const isPlatformAdmin = userRole === 'platform_admin' || isSuperAdmin;
+  const isRegularUser = userRole === 'user';
+
+  // Section visibility
+  const showAccountSettings = true; // All users can see this
+  const showRolesPermissions = isAdminMode && isPlatformAdmin;
+  const showMFA = isAdminMode && isSuperAdmin;
+
+  useEffect(() => {
+    if (user) {
+      // Calculate password expiration date (90 days from creation for PoC)
+      const createdDate = new Date(user.createdOn);
+      const expirationDate = new Date(createdDate);
+      expirationDate.setDate(expirationDate.getDate() + 90);
+      const expirationString = expirationDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      form.setFieldsValue({
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phonePrefix: user.phonePrefix,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+        active: user.active,
+        locked: user.locked,
+        verified: user.verified,
+        ssoProvider: user.ssoProvider,
+        mfaEnabled: user.mfaEnabled || false,
+        passwordExpiration: expirationString,
+        timezone: user.timezone || null,
+      });
+    } else if (isAddMode) {
+      form.resetFields();
+      form.setFieldsValue({
+        phonePrefix: '+1',
+        role: 4,
+        active: true,
+        locked: false,
+        verified: false,
+        ssoProvider: null,
+        mfaEnabled: false,
+        passwordExpiration: null,
+        timezone: null,
+      });
+    }
+  }, [user, isAddMode, form]);
+
+  const handleEditSection = (section) => {
+    setEditingSection(section);
+  };
+
+  const handleCancelSection = () => {
+    // Reset form fields to original values
+    if (user) {
+      const createdDate = new Date(user.createdOn);
+      const expirationDate = new Date(createdDate);
+      expirationDate.setDate(expirationDate.getDate() + 90);
+      const expirationString = expirationDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      form.setFieldsValue({
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phonePrefix: user.phonePrefix,
+        phoneNumber: user.phoneNumber,
+        passwordExpiration: expirationString,
+        timezone: user.timezone || null,
+      });
+    }
+    setEditingSection(null);
+    setShowPasswordChange(false);
+    setPasswordStrength({ score: 0, label: '', color: '' });
+  };
+
+  const handleSaveSection = async (section) => {
+    try {
+      // Validate only the fields in this section
+      let fieldsToValidate = [];
+
+      if (section === 'userInfo') {
+        fieldsToValidate = ['firstName', 'lastName', 'phonePrefix', 'phoneNumber'];
+      } else if (section === 'password') {
+        if (showPasswordChange) {
+          fieldsToValidate = ['oldPassword', 'newPassword', 'confirmPassword'];
+        }
+      } else if (section === 'preferences') {
+        fieldsToValidate = ['timezone'];
+      }
+
+      if (fieldsToValidate.length > 0) {
+        await form.validateFields(fieldsToValidate);
+      }
+
+      const values = form.getFieldsValue(fieldsToValidate);
+
+      if (isSelfService) {
+        if (section === 'password' && showPasswordChange) {
+          console.log('Self-service password change requested');
+          message.success('Password changed successfully!');
+          setShowPasswordChange(false);
+          setPasswordStrength({ score: 0, label: '', color: '' });
+        } else {
+          message.success('Section updated successfully!');
+          console.log('Self-service section update:', section, values);
+        }
+      }
+
+      setEditingSection(null);
+    } catch (error) {
+      console.error('Validation failed:', error);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields();
+
+      // Handle password change if password change is active
+      if (showPasswordChange && (values.oldPassword || values.newPassword || values.confirmPassword)) {
+        if (isSelfService) {
+          console.log('Self-service password change requested');
+          message.success('Password changed successfully!');
+          setShowPasswordChange(false);
+        } else {
+          console.log('Admin password reset for user:', userId);
+          console.log('AUDIT: Admin', userRole, 'reset password for user', userId);
+          message.success('Password reset successfully. User will be notified via email.');
+        }
+        // In a real app, you would call an API to change/reset the password
+      } else if (!isSelfService && (values.newPassword || values.confirmPassword)) {
+        // Admin password reset
+        console.log('Admin password reset for user:', userId);
+        console.log('AUDIT: Admin', userRole, 'reset password for user', userId);
+        message.success('Password reset successfully. User will be notified via email.');
+      }
+
+      // Remove password fields from user data update
+      const { oldPassword, newPassword, confirmPassword, passwordExpiration, ...userData } = values;
+
+      if (isAddMode) {
+        message.success('User added successfully!');
+        console.log('AUDIT: Admin', userRole, 'added new user:', userData);
+      } else if (isEditMode) {
+        if (isSelfService) {
+          message.success('Profile updated successfully!');
+          console.log('Self-service profile update:', userData);
+        } else {
+          message.success('User updated successfully!');
+          console.log('AUDIT: Admin', userRole, 'updated user', userId, ':', userData);
+        }
+      }
+
+      // Navigate based on context
+      if (isSelfService) {
+        navigate('/profile');
+      } else {
+        navigate('/users');
+      }
+    } catch (error) {
+      console.error('Validation failed:', error);
+    }
+  };
+
+  const handleCancel = () => {
+    if (isSelfService) {
+      navigate('/profile');
+    } else {
+      navigate('/users');
+    }
+  };
+
+  const getRoleLabel = (roleNumber) => {
+    const roleMap = {
+      1: 'Super Admin',
+      2: 'Admin',
+      3: 'Manager',
+      4: 'User',
+      5: 'Viewer',
+    };
+    return roleMap[roleNumber] || 'Unknown';
+  };
+
+  const getRoleColor = (roleNumber) => {
+    const colorMap = {
+      1: 'red',
+      2: 'orange',
+      3: 'blue',
+      4: 'green',
+      5: 'default',
+    };
+    return colorMap[roleNumber] || 'default';
+  };
+
+  const getUserInitials = (firstName, lastName) => {
+    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+  };
+
+  const calculatePasswordStrength = (password) => {
+    if (!password) return { score: 0, label: '', color: '' };
+
+    let score = 0;
+
+    // Length check
+    if (password.length >= 8) score += 25;
+    if (password.length >= 12) score += 15;
+
+    // Character variety checks
+    if (/[a-z]/.test(password)) score += 15;
+    if (/[A-Z]/.test(password)) score += 15;
+    if (/[0-9]/.test(password)) score += 15;
+    if (/[^a-zA-Z0-9]/.test(password)) score += 15;
+
+    let label = '';
+    let color = '';
+
+    if (score < 40) {
+      label = 'Weak';
+      color = '#ff4d4f';
+    } else if (score < 70) {
+      label = 'Fair';
+      color = '#faad14';
+    } else if (score < 90) {
+      label = 'Good';
+      color = '#52c41a';
+    } else {
+      label = 'Strong';
+      color = '#52c41a';
+    }
+
+    return { score, label, color };
+  };
+
+  const roleOptions = [
+    { value: 1, label: 'Super Admin', disabled: !isSuperAdmin },
+    { value: 2, label: 'Admin', disabled: !isSuperAdmin },
+    { value: 3, label: 'Manager' },
+    { value: 4, label: 'User' },
+    { value: 5, label: 'Viewer' },
+  ];
+
+  const ssoOptions = [
+    { value: null, label: 'None' },
+    { value: 'google', label: 'Google' },
+    { value: 'microsoft', label: 'Microsoft' },
+  ];
+
+  const timezoneOptions = [
+    { value: 'America/New_York', label: 'Eastern Time (ET)' },
+    { value: 'America/Chicago', label: 'Central Time (CT)' },
+    { value: 'America/Denver', label: 'Mountain Time (MT)' },
+    { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+    { value: 'America/Anchorage', label: 'Alaska Time (AKT)' },
+    { value: 'Pacific/Honolulu', label: 'Hawaii Time (HT)' },
+    { value: 'UTC', label: 'UTC' },
+  ];
+
+  const getTitle = () => {
+    if (isSelfService) return 'My Profile';
+    if (isAddMode) return 'Add New User';
+    if (isEditMode) return 'Edit User';
+    return 'User Details';
+  };
+
+  if (isViewMode && user && !isSelfService) {
+    return (
+      <div className="page-container">
+        <div className="page-header page-header-sticky">
+          <div className="header-left">
+            <div className="header-title-section">
+              <h1>{getTitle()}</h1>
+              <div className="user-info">
+                <span className="user-id">ID: {userId}</span>
+                <span className="user-name">{user.firstName} {user.lastName}</span>
+              </div>
+            </div>
+          </div>
+          <div className="header-actions">
+            <Button onClick={handleCancel}>Close</Button>
+            <Button type="primary" onClick={() => navigate(`/users/${userId}?mode=edit`)}>
+              Edit User
+            </Button>
+          </div>
+        </div>
+
+        {isAdminManagingOther && (
+          <Alert
+            message={`You are managing ${user.firstName} ${user.lastName}'s account`}
+            description="Changes made here will affect this user's account and will be logged for audit purposes."
+            type="warning"
+            icon={<WarningOutlined />}
+            showIcon
+            style={{ marginBottom: 24 }}
+          />
+        )}
+
+        <div className="form-content">
+          <Card bordered className="form-section" style={{ marginBottom: 24 }}>
+            <Divider orientation="left" style={{ fontWeight: 'bold', marginTop: 0 }}>
+              User Information
+            </Divider>
+            <Descriptions bordered column={2}>
+              <Descriptions.Item label="Full Name" span={2}>
+                {user.firstName} {user.lastName}
+              </Descriptions.Item>
+              <Descriptions.Item label="Email" span={2}>
+                {user.email}
+              </Descriptions.Item>
+              <Descriptions.Item label="Phone" span={2}>
+                {user.phonePrefix} {user.phoneNumber}
+              </Descriptions.Item>
+              <Descriptions.Item label="Last Login" span={2}>
+                {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Created On" span={2}>
+                {new Date(user.createdOn).toLocaleString()}
+              </Descriptions.Item>
+              <Descriptions.Item label="Modified On" span={2}>
+                {new Date(user.modifiedOn).toLocaleString()}
+              </Descriptions.Item>
+            </Descriptions>
+
+            {isSelfService && (
+              <>
+                <Divider orientation="left" style={{ fontWeight: 'bold' }}>
+                  Your Role
+                </Divider>
+                <Descriptions bordered column={2}>
+                  <Descriptions.Item label="Role" span={2}>
+                    {getRoleLabel(user.role)}
+                  </Descriptions.Item>
+                </Descriptions>
+              </>
+            )}
+
+            {showRolesPermissions && (
+              <>
+                <Divider orientation="left" style={{ fontWeight: 'bold' }}>
+                  Roles & Permissions
+                </Divider>
+                <Descriptions bordered column={2}>
+                  <Descriptions.Item label="Role">
+                    {getRoleLabel(user.role)}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Dashboard Access">
+                    {user.active ? (
+                      <Tag color="green">Enabled</Tag>
+                    ) : (
+                      <Tag color="red">Disabled</Tag>
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Security Lock">
+                    {user.locked ? (
+                      <Tag color="red" icon={<LockOutlined />}>Locked Out</Tag>
+                    ) : (
+                      <Tag color="green" icon={<UnlockOutlined />}>Normal</Tag>
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Verified">
+                    {user.verified ? (
+                      <Tag color="green">Verified</Tag>
+                    ) : (
+                      <Tag color="orange">Pending</Tag>
+                    )}
+                  </Descriptions.Item>
+                </Descriptions>
+              </>
+            )}
+
+            {showMFA && (
+              <>
+                <Divider orientation="left" style={{ fontWeight: 'bold' }}>
+                  MFA
+                </Divider>
+                <Descriptions bordered column={2}>
+                  <Descriptions.Item label="SSO Provider">
+                    {user.ssoProvider === 'google' && (
+                      <Tag icon={<GoogleOutlined />} color="#4285F4">
+                        Google
+                      </Tag>
+                    )}
+                    {user.ssoProvider === 'microsoft' && (
+                      <Tag icon={<WindowsOutlined />} color="#00A4EF">
+                        Microsoft
+                      </Tag>
+                    )}
+                    {!user.ssoProvider && '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="MFA Enabled">
+                    {user.mfaEnabled ? (
+                      <Tag color="green">Enabled</Tag>
+                    ) : (
+                      <Tag color="default">Disabled</Tag>
+                    )}
+                  </Descriptions.Item>
+                </Descriptions>
+              </>
+            )}
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-container">
+      <div className="page-header page-header-sticky">
+        <div className="header-left">
+          <div className="header-title-section">
+            <h1>{getTitle()}</h1>
+            {isEditMode && user && !isSelfService && (
+              <div className="user-info">
+                <span className="user-id">ID: {userId}</span>
+                <span className="user-name">{user.firstName} {user.lastName}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        {!isSelfService && (
+          <div className="header-actions">
+            <Button onClick={handleCancel}>Cancel</Button>
+            <Button type="primary" onClick={handleSave}>
+              {isAddMode ? 'Add User' : 'Save Changes'}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {isAdminManagingOther && (
+        <Alert
+          message={`You are managing ${user.firstName} ${user.lastName}'s account`}
+          description="Changes made here will affect this user's account and will be logged for audit purposes."
+          type="warning"
+          icon={<WarningOutlined />}
+          showIcon
+          style={{ marginBottom: 24 }}
+        />
+      )}
+
+      {/* Profile Header - Only for self-service */}
+      {isSelfService && user && (
+        <Card style={{ marginBottom: 24 }} bordered>
+          <Row gutter={24} align="middle">
+            <Col>
+              <Avatar
+                size={80}
+                style={{
+                  backgroundColor: '#4013be',
+                  fontSize: '32px',
+                  fontWeight: 'bold',
+                }}
+              >
+                {getUserInitials(user.firstName, user.lastName)}
+              </Avatar>
+            </Col>
+            <Col flex="auto">
+              <div>
+                <h2 style={{ margin: 0, marginBottom: 8 }}>
+                  {user.firstName} {user.lastName}
+                </h2>
+                <div style={{ marginBottom: 12 }}>
+                  <Tag color={getRoleColor(user.role)} style={{ fontSize: '14px', padding: '4px 12px' }}>
+                    {getRoleLabel(user.role)}
+                  </Tag>
+                  {user.verified && (
+                    <Tag color="green" icon={<CheckCircleOutlined />} style={{ fontSize: '14px', padding: '4px 12px' }}>
+                      Verified
+                    </Tag>
+                  )}
+                  {user.mfaEnabled ? (
+                    <Tag color="green" icon={<SafetyOutlined />} style={{ fontSize: '14px', padding: '4px 12px' }}>
+                      MFA Enabled
+                    </Tag>
+                  ) : (
+                    <Tag color="orange" icon={<SafetyOutlined />} style={{ fontSize: '14px', padding: '4px 12px' }}>
+                      MFA Not Setup
+                    </Tag>
+                  )}
+                </div>
+                <div style={{ fontSize: '13px', color: '#8c8c8c' }}>
+                  <ClockCircleOutlined style={{ marginRight: 6 }} />
+                  Last Login: {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Card>
+      )}
+
+      <div className="form-content">
+        <Form form={form} layout="vertical" name="userProfile">
+          <Card bordered className="form-section" style={{ marginBottom: 24 }}>
+            <Tabs
+              type="card"
+              items={[
+                {
+                  key: 'user-info',
+                  label: 'User Information',
+                  children: (
+                    <>
+                      {isSelfService && editingSection === 'userInfo' && (
+                        <div style={{ marginBottom: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          <Button icon={<CloseOutlined />} onClick={handleCancelSection}>
+                            Cancel
+                          </Button>
+                          <Button type="primary" icon={<SaveOutlined />} onClick={() => handleSaveSection('userInfo')}>
+                            Save
+                          </Button>
+                        </div>
+                      )}
+                      {isSelfService && editingSection !== 'userInfo' && (
+                        <div style={{ marginBottom: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          <Button
+                            type="link"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditSection('userInfo')}
+                            style={{ color: '#4013be' }}
+                          >
+                            Edit
+                          </Button>
+                        </div>
+                      )}
+                      <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    label="First Name"
+                    name="firstName"
+                    rules={[{ required: true, message: 'Please enter first name' }]}
+                  >
+                    <Input
+                      placeholder="Enter first name"
+                      disabled={isSelfService && editingSection !== 'userInfo'}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    label="Last Name"
+                    name="lastName"
+                    rules={[{ required: true, message: 'Please enter last name' }]}
+                  >
+                    <Input
+                      placeholder="Enter last name"
+                      disabled={isSelfService && editingSection !== 'userInfo'}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Form.Item
+                label="Email"
+                name="email"
+                rules={[
+                  { required: true, message: 'Please enter email' },
+                  { type: 'email', message: 'Please enter a valid email' },
+                ]}
+              >
+                <Input placeholder="user@example.com" disabled />
+              </Form.Item>
+
+              <Row gutter={16}>
+                <Col span={6}>
+                  <Form.Item
+                    label="Phone Prefix"
+                    name="phonePrefix"
+                    rules={[{ required: true, message: 'Required' }]}
+                  >
+                    <Input
+                      placeholder="+1"
+                      disabled={isSelfService && editingSection !== 'userInfo'}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={18}>
+                  <Form.Item
+                    label="Phone Number"
+                    name="phoneNumber"
+                    rules={[{ required: true, message: 'Please enter phone number' }]}
+                  >
+                    <Input
+                      placeholder="(555) 123-4567"
+                      disabled={isSelfService && editingSection !== 'userInfo'}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+                    </>
+                  ),
+                },
+                {
+                  key: 'password-security',
+                  label: 'Password & Security',
+                  children: (
+                    <>
+                      {isSelfService && !showPasswordChange && editingSection !== 'password' && (
+                        <div style={{ marginBottom: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          <Button
+                            type="link"
+                            icon={<EditOutlined />}
+                            onClick={() => {
+                              setShowPasswordChange(true);
+                              handleEditSection('password');
+                            }}
+                            style={{ color: '#4013be' }}
+                          >
+                            Change Password
+                          </Button>
+                        </div>
+                      )}
+              {!isAddMode && (
+                <Form.Item label="Password Expiration Date" name="passwordExpiration">
+                  <Input disabled style={{ color: '#000' }} />
+                </Form.Item>
+              )}
+
+              {isSelfService ? (
+                // Self-service: Requires old password
+                <>
+                  {!isAddMode && showPasswordChange && (
+                    <>
+                      <Divider style={{ margin: '16px 0' }} />
+
+                      {showPasswordChange && (
+                        <>
+                          <Alert
+                            message="Changing Your Password"
+                            description="Enter your current password and your new password twice to confirm."
+                            type="info"
+                            showIcon
+                            style={{ marginBottom: 16 }}
+                          />
+
+                          <Form.Item
+                            label="Current Password"
+                            name="oldPassword"
+                            rules={[
+                              { required: true, message: 'Please enter your current password' },
+                            ]}
+                          >
+                            <Input.Password placeholder="Enter current password" />
+                          </Form.Item>
+
+                          <Row gutter={16}>
+                            <Col span={12}>
+                              <Form.Item
+                                label="New Password"
+                                name="newPassword"
+                                rules={[
+                                  { required: true, message: 'Please enter new password' },
+                                  { min: 8, message: 'Password must be at least 8 characters' },
+                                ]}
+                              >
+                                <Input.Password
+                                  placeholder="Enter new password"
+                                  onChange={(e) => {
+                                    const strength = calculatePasswordStrength(e.target.value);
+                                    setPasswordStrength(strength);
+                                  }}
+                                />
+                              </Form.Item>
+                              {passwordStrength.label && (
+                                <div style={{ marginTop: '-16px', marginBottom: '16px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                                    <span style={{ fontSize: '12px', color: '#8c8c8c' }}>Password Strength</span>
+                                    <span style={{ fontSize: '12px', fontWeight: 500, color: passwordStrength.color }}>
+                                      {passwordStrength.label}
+                                    </span>
+                                  </div>
+                                  <Progress
+                                    percent={passwordStrength.score}
+                                    strokeColor={passwordStrength.color}
+                                    showInfo={false}
+                                    size="small"
+                                  />
+                                  <div style={{ fontSize: '11px', color: '#8c8c8c', marginTop: 4 }}>
+                                    Requirements: 8+ chars, uppercase, lowercase, number, special char
+                                  </div>
+                                </div>
+                              )}
+                            </Col>
+                            <Col span={12}>
+                              <Form.Item
+                                label="Confirm New Password"
+                                name="confirmPassword"
+                                dependencies={['newPassword']}
+                                rules={[
+                                  { required: true, message: 'Please confirm your new password' },
+                                  ({ getFieldValue }) => ({
+                                    validator(_, value) {
+                                      if (!value || getFieldValue('newPassword') === value) {
+                                        return Promise.resolve();
+                                      }
+                                      return Promise.reject(new Error('Passwords do not match'));
+                                    },
+                                  }),
+                                ]}
+                              >
+                                <Input.Password placeholder="Confirm new password" />
+                              </Form.Item>
+                            </Col>
+                          </Row>
+
+                          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+                            <Button
+                              icon={<CloseOutlined />}
+                              onClick={handleCancelSection}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="primary"
+                              icon={<SaveOutlined />}
+                              onClick={() => handleSaveSection('password')}
+                            >
+                              Save Password
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                </>
+              ) : (
+                // Admin reset: No old password required
+                <>
+                  {!isAddMode && (
+                    <>
+                      <Divider style={{ margin: '16px 0' }} />
+                      <Alert
+                        message="Admin Password Reset"
+                        description="As an administrator, you can reset this user's password without providing their old password. The user will be notified via email and may be required to change their password on next login."
+                        type="info"
+                        showIcon
+                        style={{ marginBottom: 16 }}
+                      />
+                    </>
+                  )}
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        label="New Password"
+                        name="newPassword"
+                        rules={[
+                          ({ getFieldValue }) => ({
+                            validator(_, value) {
+                              const confirmPassword = getFieldValue('confirmPassword');
+                              if (confirmPassword && !value) {
+                                return Promise.reject(new Error('New password is required'));
+                              }
+                              return Promise.resolve();
+                            },
+                          }),
+                        ]}
+                      >
+                        <Input.Password placeholder="Enter new password" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        label="Confirm New Password"
+                        name="confirmPassword"
+                        dependencies={['newPassword']}
+                        rules={[
+                          ({ getFieldValue }) => ({
+                            validator(_, value) {
+                              const newPassword = getFieldValue('newPassword');
+
+                              if (newPassword && !value) {
+                                return Promise.reject(new Error('Please confirm the new password'));
+                              }
+
+                              if (value && newPassword && value !== newPassword) {
+                                return Promise.reject(new Error('Passwords do not match'));
+                              }
+
+                              return Promise.resolve();
+                            },
+                          }),
+                        ]}
+                      >
+                        <Input.Password placeholder="Confirm new password" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  {!isAddMode && (
+                    <div style={{ fontSize: '12px', color: '#8c8c8c', marginTop: '-8px' }}>
+                      Leave password fields blank to keep the current password
+                    </div>
+                  )}
+                </>
+              )}
+                    </>
+                  ),
+                },
+                {
+                  key: 'preferences',
+                  label: 'Preferences',
+                  children: (
+                    <>
+                      {isSelfService && editingSection === 'preferences' && (
+                        <div style={{ marginBottom: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          <Button icon={<CloseOutlined />} onClick={handleCancelSection}>
+                            Cancel
+                          </Button>
+                          <Button type="primary" icon={<SaveOutlined />} onClick={() => handleSaveSection('preferences')}>
+                            Save
+                          </Button>
+                        </div>
+                      )}
+                      {isSelfService && editingSection !== 'preferences' && (
+                        <div style={{ marginBottom: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          <Button
+                            type="link"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditSection('preferences')}
+                            style={{ color: '#4013be' }}
+                          >
+                            Edit
+                          </Button>
+                        </div>
+                      )}
+                      <Form.Item label="Timezone" name="timezone">
+                        <Select
+                          options={timezoneOptions}
+                          placeholder="Select timezone"
+                          disabled={isSelfService && editingSection !== 'preferences'}
+                        />
+                      </Form.Item>
+                    </>
+                  ),
+                },
+              ]}
+            />
+          </Card>
+
+          {showRolesPermissions && (
+            <div id="roles">
+              <Card title="Role Assignment" bordered className="form-section">
+                <Form.Item
+                  label="Role"
+                  name="role"
+                  rules={[{ required: true, message: 'Please select a role' }]}
+                >
+                  <Select options={roleOptions} />
+                </Form.Item>
+
+                {!isSuperAdmin && (
+                  <div
+                    style={{
+                      background: '#fff3cd',
+                      padding: '12px',
+                      borderRadius: '4px',
+                      marginBottom: '16px',
+                      fontSize: '12px',
+                      color: '#856404',
+                    }}
+                  >
+                    <strong>Note:</strong> As a Platform Admin, you cannot assign Super Admin or Admin
+                    roles.
+                  </div>
+                )}
+              </Card>
+
+              <Card title="Account Status" bordered className="form-section">
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <Form.Item label="Dashboard Access" name="active" valuePropName="checked">
+                      <Switch checkedChildren="Enabled" unCheckedChildren="Disabled" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}>
+                    <Form.Item label="Security Lock" name="locked" valuePropName="checked">
+                      <Switch checkedChildren="Locked Out" unCheckedChildren="Normal" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}>
+                    <Form.Item label="Verified" name="verified" valuePropName="checked">
+                      <Switch checkedChildren="Verified" unCheckedChildren="Pending" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Card>
+            </div>
+          )}
+
+          {showMFA && (
+            <div id="mfa">
+              <Card title="Authentication Settings" bordered className="form-section">
+                <Form.Item label="SSO Provider" name="ssoProvider">
+                  <Select options={ssoOptions} />
+                </Form.Item>
+
+                <Form.Item label="MFA Enabled" name="mfaEnabled" valuePropName="checked">
+                  <Switch />
+                </Form.Item>
+              </Card>
+            </div>
+          )}
+        </Form>
+      </div>
+    </div>
+  );
+};
+
+export default UserProfilePage;
