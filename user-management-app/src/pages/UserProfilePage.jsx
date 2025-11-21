@@ -1207,7 +1207,7 @@ const UserProfilePage = ({ mode: pageMode, userRole }) => {
                               <Divider style={{ margin: '16px 0' }} />
                               <Alert
                                 message="Admin Password Reset"
-                                description="As an administrator, you can reset this user's password without providing their old password. The user will be notified via email and may be required to change their password on next login."
+                                description="As an administrator, you can reset this user's password without providing their old password."
                                 type="info"
                                 showIcon
                                 style={{ marginBottom: 16 }}
