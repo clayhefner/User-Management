@@ -1,6 +1,25 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Table, Button, Tag, Space, Tooltip, Dropdown, message, Input, Switch, Skeleton, Popover, Checkbox, Avatar, Modal, Form, Select, Row, Col } from 'antd';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Table,
+  Button,
+  Tag,
+  Space,
+  Tooltip,
+  Dropdown,
+  message,
+  Input,
+  Switch,
+  Skeleton,
+  Popover,
+  Checkbox,
+  Avatar,
+  Modal,
+  Form,
+  Select,
+  Row,
+  Col,
+} from "antd";
 import {
   EditOutlined,
   DeleteOutlined,
@@ -19,13 +38,13 @@ import {
   WarningFilled,
   ExclamationCircleFilled,
   ExperimentOutlined,
-} from '@ant-design/icons';
-import { mockUsers } from '../data/mockUsers';
+} from "@ant-design/icons";
+import { mockUsers } from "../data/mockUsers";
 
 const Users = ({ userRole }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState("");
   const [filteredData, setFilteredData] = useState([]);
   const [filters, setFilters] = useState({
     verified: [],
@@ -36,34 +55,39 @@ const Users = ({ userRole }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addUserForm] = Form.useForm();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalConfig, setModalConfig] = useState({ title: '', content: '', action: null });
+  const [modalConfig, setModalConfig] = useState({
+    title: "",
+    content: "",
+    action: null,
+  });
+  const [testModeOnly, setTestModeOnly] = useState(false);
 
-  const isSuperAdmin = userRole === 'super_admin';
+  const isSuperAdmin = userRole === "super_admin";
 
   const getUserInitials = (firstName, lastName) => {
-    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+    return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
   };
 
   const getRoleLabel = (roleNumber) => {
     const roleMap = {
-      1: 'Super Admin',
-      2: 'Admin',
-      3: 'Manager',
-      4: 'User',
-      5: 'Viewer',
+      1: "Super Admin",
+      2: "Admin",
+      3: "Manager",
+      4: "User",
+      5: "Viewer",
     };
-    return roleMap[roleNumber] || 'Unknown';
+    return roleMap[roleNumber] || "Unknown";
   };
 
   const getRoleColor = (roleNumber) => {
     const colorMap = {
-      1: 'red',
-      2: 'orange',
-      3: 'blue',
-      4: 'green',
-      5: 'default',
+      1: "red",
+      2: "orange",
+      3: "blue",
+      4: "green",
+      5: "default",
     };
-    return colorMap[roleNumber] || 'default';
+    return colorMap[roleNumber] || "default";
   };
 
   const getAccessTag = (user) => {
@@ -74,25 +98,29 @@ const Users = ({ userRole }) => {
   };
 
   const handleAddUser = () => {
+    setTestModeOnly(false); // Default to Test and Live
     setIsAddModalOpen(true);
   };
 
   const handleAddUserSubmit = async () => {
     try {
       const values = await addUserForm.validateFields();
-      console.log('New user data:', values);
-      message.success(`User ${values.firstName} ${values.lastName} has been added successfully`);
+      console.log("New user data:", values);
+      message.success(
+        `User ${values.firstName} ${values.lastName} has been added successfully`
+      );
       setIsAddModalOpen(false);
       addUserForm.resetFields();
       // In a real app, you would call an API to create the user
     } catch (error) {
-      console.error('Validation failed:', error);
+      console.error("Validation failed:", error);
     }
   };
 
   const handleAddModalCancel = () => {
     setIsAddModalOpen(false);
     addUserForm.resetFields();
+    setTestModeOnly(false);
   };
 
   const handleEditUser = (user) => {
@@ -100,42 +128,56 @@ const Users = ({ userRole }) => {
   };
 
   const handleLockToggle = (user) => {
-    message.success(`Security lockout reset for: ${user.firstName} ${user.lastName}`);
-    console.log('Reset lockout for user:', user.id);
+    message.success(
+      `Security lockout reset for: ${user.firstName} ${user.lastName}`
+    );
+    console.log("Reset lockout for user:", user.id);
     // In a real app, you would reset the user's failed login attempts and unlock their account
   };
 
   const handleAccessToggle = (user) => {
-    message.info(`${user.active ? 'Disabling' : 'Enabling'} dashboard access for: ${user.firstName} ${user.lastName}`);
-    console.log(user.active ? 'Disable' : 'Enable', 'dashboard access for', user.id);
+    message.info(
+      `${user.active ? "Disabling" : "Enabling"} dashboard access for: ${
+        user.firstName
+      } ${user.lastName}`
+    );
+    console.log(
+      user.active ? "Disable" : "Enable",
+      "dashboard access for",
+      user.id
+    );
     // In a real app, you would update the user's active status here
   };
 
   const handleDeleteUser = (user) => {
     message.warning(`Delete user: ${user.firstName} ${user.lastName}`);
-    console.log('Delete', user.id);
+    console.log("Delete", user.id);
     // In a real app, you would show a confirmation dialog and delete the user
   };
 
   const handleResendVerification = (user) => {
     message.success(`Verification email sent to ${user.email}`);
-    console.log('Resend verification email to:', user.id, user.email);
+    console.log("Resend verification email to:", user.id, user.email);
     // In a real app, you would call an API to resend the verification email
   };
 
   const handleAccessToggleInline = (user, checked) => {
-    message.info(`${checked ? 'Enabling' : 'Disabling'} dashboard access for: ${user.firstName} ${user.lastName}`);
+    message.info(
+      `${checked ? "Enabling" : "Disabling"} dashboard access for: ${
+        user.firstName
+      } ${user.lastName}`
+    );
     // In a real app, you would update the user's active status here
   };
 
   const handleResetMFA = (user) => {
     const config = {
-      title: 'Reset Multi-Factor Authentication',
+      title: "Reset Multi-Factor Authentication",
       content: `Are you sure you want to reset MFA for ${user.firstName} ${user.lastName}? This will remove their current MFA setup and require them to set it up again on their next login.`,
       action: () => {
-        message.success('MFA reset successfully!');
-        console.log('AUDIT: Super Admin reset MFA for user', user.id);
-      }
+        message.success("MFA reset successfully!");
+        console.log("AUDIT: Super Admin reset MFA for user", user.id);
+      },
     };
     setModalConfig(config);
     setIsModalOpen(true);
@@ -167,25 +209,30 @@ const Users = ({ userRole }) => {
 
     // Search filter
     if (searchText) {
-      filtered = filtered.filter(
-        (user) =>
-          user.lastName.toLowerCase().includes(searchText.toLowerCase())
+      filtered = filtered.filter((user) =>
+        user.lastName.toLowerCase().includes(searchText.toLowerCase())
       );
     }
 
     // Verification filter
     if (filters.verified.length > 0) {
-      filtered = filtered.filter((user) => filters.verified.includes(user.verified));
+      filtered = filtered.filter((user) =>
+        filters.verified.includes(user.verified)
+      );
     }
 
     // MFA filter
     if (filters.mfa.length > 0) {
-      filtered = filtered.filter((user) => filters.mfa.includes(user.mfaEnabled || false));
+      filtered = filtered.filter((user) =>
+        filters.mfa.includes(user.mfaEnabled || false)
+      );
     }
 
     // Access filter
     if (filters.access.length > 0) {
-      filtered = filtered.filter((user) => filters.access.includes(user.active));
+      filtered = filtered.filter((user) =>
+        filters.access.includes(user.active)
+      );
     }
 
     // Role filter
@@ -221,31 +268,38 @@ const Users = ({ userRole }) => {
 
   const columns = [
     {
-      title: 'User',
-      key: 'user',
-      fixed: 'left',
+      title: "User",
+      key: "user",
+      fixed: "left",
       width: 280,
       render: (_, record) => {
         const avatarUrl = localStorage.getItem(`avatar_${record.id}`);
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <Avatar
               size={40}
               src={avatarUrl}
               style={{
-                backgroundColor: '#4013be',
-                fontSize: '16px',
+                backgroundColor: "#4013be",
+                fontSize: "16px",
                 fontWeight: 600,
                 flexShrink: 0,
               }}
             >
               {!avatarUrl && getUserInitials(record.firstName, record.lastName)}
             </Avatar>
-            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div
+              style={{
+                minWidth: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+              }}
+            >
               <div style={{ fontWeight: 500 }}>
                 {record.firstName} {record.lastName}
               </div>
-              <div style={{ fontSize: '13px', color: '#8c8c8c' }}>
+              <div style={{ fontSize: "13px", color: "#8c8c8c" }}>
                 {record.email}
               </div>
             </div>
@@ -254,40 +308,40 @@ const Users = ({ userRole }) => {
       },
     },
     {
-      title: 'Role & Access',
-      key: 'role',
+      title: "Role & Access",
+      key: "role",
       width: 160,
       render: (_, record) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontWeight: 500 }}>
-            {getRoleLabel(record.role)}
-          </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontWeight: 500 }}>{getRoleLabel(record.role)}</span>
           {record.testModeOnly && (
-            <Tooltip title="Test Mode Only">
-              <ExperimentOutlined style={{ color: '#722ed1', fontSize: '16px' }} />
+            <Tooltip title="Test Mode Only - Cannot access live mode">
+              <ExperimentOutlined
+                style={{ color: "#722ed1", fontSize: "16px" }}
+              />
             </Tooltip>
           )}
         </div>
       ),
     },
     {
-      title: 'Last Login',
-      key: 'lastLogin',
+      title: "Last Login",
+      key: "lastLogin",
       width: 150,
       render: (_, record) => {
         if (record.lastLogin) {
-          return new Date(record.lastLogin).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
+          return new Date(record.lastLogin).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
           });
         }
-        return <span style={{ color: '#8c8c8c' }}>Never</span>;
+        return <span style={{ color: "#8c8c8c" }}>Never</span>;
       },
     },
     {
-      title: 'Status',
-      key: 'access',
+      title: "Status",
+      key: "access",
       width: 160,
       render: (_, record) => {
         // If active is false, always show Inactive
@@ -305,19 +359,25 @@ const Users = ({ userRole }) => {
       },
     },
     {
-      title: 'MFA',
-      key: 'mfa',
+      title: "MFA",
+      key: "mfa",
       width: 100,
       render: (_, record) => {
         if (record.mfaEnabled) {
-          return <SafetyCertificateFilled style={{ color: '#52c41a', fontSize: '18px' }} />;
+          return (
+            <SafetyCertificateFilled
+              style={{ color: "#52c41a", fontSize: "18px" }}
+            />
+          );
         }
-        return <CloseCircleFilled style={{ color: '#d9d9d9', fontSize: '18px' }} />;
+        return (
+          <CloseCircleFilled style={{ color: "#d9d9d9", fontSize: "18px" }} />
+        );
       },
     },
     {
-      title: 'Alerts',
-      key: 'alerts',
+      title: "Alerts",
+      key: "alerts",
       width: 100,
       render: (_, record) => {
         const alerts = [];
@@ -326,7 +386,9 @@ const Users = ({ userRole }) => {
         if (record.locked) {
           alerts.push(
             <Tooltip key="locked" title="Security Lock Out">
-              <ExclamationCircleFilled style={{ color: '#ff4d4f', fontSize: '18px' }} />
+              <ExclamationCircleFilled
+                style={{ color: "#ff4d4f", fontSize: "18px" }}
+              />
             </Tooltip>
           );
         }
@@ -338,59 +400,75 @@ const Users = ({ userRole }) => {
           if (expirationDate < today) {
             alerts.push(
               <Tooltip key="expired" title="Password Expired">
-                <ExclamationCircleFilled style={{ color: '#ff4d4f', fontSize: '18px' }} />
+                <ExclamationCircleFilled
+                  style={{ color: "#ff4d4f", fontSize: "18px" }}
+                />
               </Tooltip>
             );
           }
         }
 
         if (alerts.length === 0) {
-          return <span style={{ color: '#d9d9d9' }}>—</span>;
+          return <span style={{ color: "#d9d9d9" }}>—</span>;
         }
 
         return (
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             {alerts}
           </div>
         );
       },
     },
     {
-      title: 'Actions',
-      key: 'actions',
-      fixed: 'right',
+      title: "Actions",
+      key: "actions",
+      fixed: "right",
       width: 120,
       render: (_, record) => {
         const menuItems = [
-          ...(!record.verified ? [{
-            key: 'resend',
-            icon: <MailOutlined />,
-            label: 'Resend Verification Email',
-            onClick: () => handleResendVerification(record),
-          }] : []),
+          ...(!record.verified
+            ? [
+                {
+                  key: "resend",
+                  icon: <MailOutlined />,
+                  label: "Resend Verification Email",
+                  onClick: () => handleResendVerification(record),
+                },
+              ]
+            : []),
           {
-            key: 'access',
+            key: "access",
             icon: record.active ? <StopOutlined /> : <CheckCircleOutlined />,
-            label: record.active ? 'Disable Dashboard Access' : 'Enable Dashboard Access',
+            label: record.active
+              ? "Disable Dashboard Access"
+              : "Enable Dashboard Access",
             onClick: () => handleAccessToggle(record),
           },
-          ...(record.locked ? [{
-            key: 'unlock',
-            icon: <UnlockOutlined />,
-            label: 'Reset User Lockout',
-            onClick: () => handleLockToggle(record),
-          }] : []),
-          ...(isSuperAdmin && record.mfaEnabled ? [{
-            key: 'resetMFA',
-            icon: <SafetyOutlined />,
-            label: 'Reset MFA',
-            danger: true,
-            onClick: () => handleResetMFA(record),
-          }] : []),
+          ...(record.locked
+            ? [
+                {
+                  key: "unlock",
+                  icon: <UnlockOutlined />,
+                  label: "Reset User Lockout",
+                  onClick: () => handleLockToggle(record),
+                },
+              ]
+            : []),
+          ...(isSuperAdmin && record.mfaEnabled
+            ? [
+                {
+                  key: "resetMFA",
+                  icon: <SafetyOutlined />,
+                  label: "Reset MFA",
+                  danger: true,
+                  onClick: () => handleResetMFA(record),
+                },
+              ]
+            : []),
           {
-            key: 'delete',
+            key: "delete",
             icon: <DeleteOutlined />,
-            label: 'Delete User',
+            label: "Delete User",
             danger: true,
             onClick: () => handleDeleteUser(record),
           },
@@ -418,35 +496,35 @@ const Users = ({ userRole }) => {
         <div style={{ marginTop: 8 }}>
           <Checkbox
             checked={filters.role.includes(1)}
-            onChange={(e) => handleFilterChange('role', 1, e.target.checked)}
+            onChange={(e) => handleFilterChange("role", 1, e.target.checked)}
           >
             Super Admin
           </Checkbox>
           <br />
           <Checkbox
             checked={filters.role.includes(2)}
-            onChange={(e) => handleFilterChange('role', 2, e.target.checked)}
+            onChange={(e) => handleFilterChange("role", 2, e.target.checked)}
           >
             Admin
           </Checkbox>
           <br />
           <Checkbox
             checked={filters.role.includes(3)}
-            onChange={(e) => handleFilterChange('role', 3, e.target.checked)}
+            onChange={(e) => handleFilterChange("role", 3, e.target.checked)}
           >
             Manager
           </Checkbox>
           <br />
           <Checkbox
             checked={filters.role.includes(4)}
-            onChange={(e) => handleFilterChange('role', 4, e.target.checked)}
+            onChange={(e) => handleFilterChange("role", 4, e.target.checked)}
           >
             User
           </Checkbox>
           <br />
           <Checkbox
             checked={filters.role.includes(5)}
-            onChange={(e) => handleFilterChange('role', 5, e.target.checked)}
+            onChange={(e) => handleFilterChange("role", 5, e.target.checked)}
           >
             Viewer
           </Checkbox>
@@ -458,14 +536,18 @@ const Users = ({ userRole }) => {
         <div style={{ marginTop: 8 }}>
           <Checkbox
             checked={filters.verified.includes(true)}
-            onChange={(e) => handleFilterChange('verified', true, e.target.checked)}
+            onChange={(e) =>
+              handleFilterChange("verified", true, e.target.checked)
+            }
           >
             Verified
           </Checkbox>
           <br />
           <Checkbox
             checked={filters.verified.includes(false)}
-            onChange={(e) => handleFilterChange('verified', false, e.target.checked)}
+            onChange={(e) =>
+              handleFilterChange("verified", false, e.target.checked)
+            }
           >
             Pending
           </Checkbox>
@@ -477,14 +559,14 @@ const Users = ({ userRole }) => {
         <div style={{ marginTop: 8 }}>
           <Checkbox
             checked={filters.mfa.includes(true)}
-            onChange={(e) => handleFilterChange('mfa', true, e.target.checked)}
+            onChange={(e) => handleFilterChange("mfa", true, e.target.checked)}
           >
             Enabled
           </Checkbox>
           <br />
           <Checkbox
             checked={filters.mfa.includes(false)}
-            onChange={(e) => handleFilterChange('mfa', false, e.target.checked)}
+            onChange={(e) => handleFilterChange("mfa", false, e.target.checked)}
           >
             Disabled
           </Checkbox>
@@ -496,14 +578,18 @@ const Users = ({ userRole }) => {
         <div style={{ marginTop: 8 }}>
           <Checkbox
             checked={filters.access.includes(true)}
-            onChange={(e) => handleFilterChange('access', true, e.target.checked)}
+            onChange={(e) =>
+              handleFilterChange("access", true, e.target.checked)
+            }
           >
             Enabled
           </Checkbox>
           <br />
           <Checkbox
             checked={filters.access.includes(false)}
-            onChange={(e) => handleFilterChange('access', false, e.target.checked)}
+            onChange={(e) =>
+              handleFilterChange("access", false, e.target.checked)
+            }
           >
             Disabled
           </Checkbox>
@@ -534,12 +620,16 @@ const Users = ({ userRole }) => {
     <div className="page-container">
       <div className="page-header">
         <h1>User Management</h1>
-        <Button type="primary" icon={<UserAddOutlined />} onClick={handleAddUser}>
+        <Button
+          type="primary"
+          icon={<UserAddOutlined />}
+          onClick={handleAddUser}
+        >
           Add User
         </Button>
       </div>
 
-      <div style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
+      <div style={{ marginBottom: 16, display: "flex", gap: 8 }}>
         <Input
           placeholder="Search by last name..."
           prefix={<SearchOutlined />}
@@ -548,9 +638,15 @@ const Users = ({ userRole }) => {
           style={{ flex: 1, maxWidth: 400 }}
           allowClear
         />
-        <Popover content={filterContent} title="Filters" trigger="click" placement="bottomLeft">
+        <Popover
+          content={filterContent}
+          title="Filters"
+          trigger="click"
+          placement="bottomLeft"
+        >
           <Button icon={<FilterOutlined />}>
-            Filters {hasActiveFilters && `(${Object.values(filters).flat().length})`}
+            Filters{" "}
+            {hasActiveFilters && `(${Object.values(filters).flat().length})`}
           </Button>
         </Popover>
       </div>
@@ -564,7 +660,7 @@ const Users = ({ userRole }) => {
           showSizeChanger: true,
           showTotal: (total) => `Total ${total} users`,
         }}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: "max-content" }}
         className="no-wrap-table"
       />
 
@@ -577,19 +673,18 @@ const Users = ({ userRole }) => {
         cancelText="Cancel"
         width={500}
       >
-        <Form
-          form={addUserForm}
-          layout="vertical"
-          style={{ marginTop: 24 }}
-        >
+        <Form form={addUserForm} layout="vertical" style={{ marginTop: 24 }}>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="firstName"
                 label="First Name"
                 rules={[
-                  { required: true, message: 'Please enter first name' },
-                  { max: 50, message: 'First name must be less than 50 characters' },
+                  { required: true, message: "Please enter first name" },
+                  {
+                    max: 50,
+                    message: "First name must be less than 50 characters",
+                  },
                 ]}
               >
                 <Input placeholder="Enter first name" />
@@ -600,8 +695,11 @@ const Users = ({ userRole }) => {
                 name="lastName"
                 label="Last Name"
                 rules={[
-                  { required: true, message: 'Please enter last name' },
-                  { max: 50, message: 'Last name must be less than 50 characters' },
+                  { required: true, message: "Please enter last name" },
+                  {
+                    max: 50,
+                    message: "Last name must be less than 50 characters",
+                  },
                 ]}
               >
                 <Input placeholder="Enter last name" />
@@ -613,8 +711,8 @@ const Users = ({ userRole }) => {
             name="email"
             label="Email"
             rules={[
-              { required: true, message: 'Please enter email address' },
-              { type: 'email', message: 'Please enter a valid email address' },
+              { required: true, message: "Please enter email address" },
+              { type: "email", message: "Please enter a valid email address" },
             ]}
           >
             <Input placeholder="Enter email address" />
@@ -623,9 +721,7 @@ const Users = ({ userRole }) => {
           <Form.Item
             name="role"
             label="Role"
-            rules={[
-              { required: true, message: 'Please select a role' },
-            ]}
+            rules={[{ required: true, message: "Please select a role" }]}
           >
             <Select placeholder="Select role">
               <Select.Option value={1}>Super Admin</Select.Option>
@@ -638,15 +734,15 @@ const Users = ({ userRole }) => {
 
           <Form.Item
             name="testModeOnly"
-            label="Environment Access"
-            rules={[
-              { required: true, message: 'Please select environment access' },
-            ]}
+            label="Mode Access"
+            valuePropName="checked"
+            initialValue={false}
           >
-            <Select placeholder="Select environment access">
-              <Select.Option value={true}>Test Only</Select.Option>
-              <Select.Option value={false}>Test and Live</Select.Option>
-            </Select>
+            <Switch
+              checkedChildren="Test Only"
+              unCheckedChildren="Test and Live"
+              onChange={(checked) => setTestModeOnly(checked)}
+            />
           </Form.Item>
         </Form>
       </Modal>

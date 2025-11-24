@@ -16,6 +16,7 @@ const UserProfilePage = ({ mode: pageMode, userRole }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState({ title: '', content: '', action: null });
   const [avatarUrl, setAvatarUrl] = useState(null);
+  const [testModeOnly, setTestModeOnly] = useState(false);
 
   // Determine context
   const isSelfService = pageMode === 'self';
@@ -93,7 +94,7 @@ const UserProfilePage = ({ mode: pageMode, userRole }) => {
       form.setFieldsValue({
         phonePrefix: '+1',
         role: 4,
-        testModeOnly: true,
+        testModeOnly: false,
         active: true,
         locked: false,
         verified: false,
@@ -102,6 +103,7 @@ const UserProfilePage = ({ mode: pageMode, userRole }) => {
         passwordExpiration: null,
         timezone: null,
       });
+      setTestModeOnly(false); // Default to Test and Live
     }
   }, [user, userId, isAddMode, form]);
 
@@ -987,12 +989,12 @@ const UserProfilePage = ({ mode: pageMode, userRole }) => {
                         <Form.Item
                           label="Mode Access"
                           name="testModeOnly"
-                          rules={[{ required: true, message: 'Please select mode access' }]}
+                          valuePropName="checked"
                         >
-                          <Select placeholder="Select mode access">
-                            <Select.Option value={true}>Test Only</Select.Option>
-                            <Select.Option value={false}>Test and Live</Select.Option>
-                          </Select>
+                          <Switch
+                            checkedChildren="Test Only"
+                            unCheckedChildren="Test and Live"
+                          />
                         </Form.Item>
                       </>
                     )}
@@ -1365,12 +1367,13 @@ const UserProfilePage = ({ mode: pageMode, userRole }) => {
                   <Form.Item
                     label="Environment Access"
                     name="testModeOnly"
-                    rules={[{ required: true, message: 'Please select environment access' }]}
+                    valuePropName="checked"
                   >
-                    <Select placeholder="Select environment access">
-                      <Select.Option value={true}>Test Only</Select.Option>
-                      <Select.Option value={false}>Test and Live</Select.Option>
-                    </Select>
+                    <Switch
+                      checkedChildren="Test Only"
+                      unCheckedChildren="Test and Live"
+                      onChange={(checked) => setTestModeOnly(checked)}
+                    />
                   </Form.Item>
                 </Col>
               </Row>
